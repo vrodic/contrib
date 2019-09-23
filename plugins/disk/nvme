@@ -54,6 +54,10 @@ experienced.
 A prosumer NVMe will handle a few thousand writes to each cell before
 the error rate gets out of hand.
 
+=head2 nvme_temperatures
+
+Reports T1 and T2 temperatures of Samsung SSDs
+
 =head1 MAGIC MARKERS
 
   #%# family=auto
@@ -244,6 +248,27 @@ $_.type GAUGE
 $_.min 0
 EOF
     }
+ print <<'EOF';
+multigraph nvme_temperatures
+graph_title NVME Temps T1 / T2
+graph_order $sn_list
+graph_vlabel Temperature T1 (-) / T2 (+)'
+graph_category disk
+graph_info What are the disk temperatures
+
+EOF
+    for (@sn) {
+        print <<"EOF";
+${_}_r.label $list->{$_}->{device}
+${_}_r.type GAUGE
+${_}_r.min 0
+${_}_r.graph no
+${_}_w.label $list->{$_}->{device}
+${_}_w.type GAUGE
+${_}_w.min 0
+${_}_w.negative ${_}_r
+EOF
+    }    
 } else {
     for (@sn) {
         $list->{$_}->{smart} = smart_log($list->{$_}->{device});
@@ -261,6 +286,18 @@ EOF
         my $wbytes = $info->{smart}->{data_units_written};
         print "${_}_r.value $rbytes\n";
         print "${_}_w.value $wbytes\n";
+    }
+     print "multigraph nvme_temperatures\n";
+    for (@sn) {
+        my $info   = $list->{$_};
+        my $t1 = $info->{smart}->{temperature_sensor_1};
+        my $t2 = $info->{smart}->{temperature_sensor_2};
+        $t1 =~ s/C$//;
+        $t2 =~ s/C$//;
+        $t1 =~ s/^\s+|\s+$//g;
+        $t2=~ s/^\s+|\s+$//g;
+        print "${_}_r.value $t1\n";
+        print "${_}_w.value $t2\n";
     }
     print "multigraph nvme_writecycles\n";
     for (@sn) {
